@@ -1,4 +1,4 @@
-"""   
+"""
     This file is subject to the terms and conditions of the GNU General
     Public License. See the file COPYING in the main directory of this
     archive for more details.
@@ -11,7 +11,7 @@ from copy import copy
 from socket import gethostname
 from time import sleep, localtime
 
-import MySQLdb
+import sqlite3
 
 #
 # Constructor
@@ -26,18 +26,18 @@ class ResultSet:
         self.data = {}
         self.verboseLevel = 1
         self.hoplist = None
-        
+
         #self.plot = Gnuplot.Gnuplot(debug=1)
-    
-    
+
+
     def updateHoplist(self,hoplist):
         self.hoplist = hoplist
-        
+
         # check if the hoplist matches with the dataset we got
         c = self.conn.cursor()
         c.execute("SELECT COUNT(*) FROM hoplist")
         r = c.fetchone()
-        
+
         print "new",len(hoplist),"old",r[0]
 
         # if there are no hop stats in our dataset,
@@ -47,7 +47,7 @@ class ResultSet:
             hopCounter = 1
             for t in self.hoplist:
                 print type (t), t
-                c.execute("INSERT INTO hoplist VALUES (%s,%s)",(hopCounter,t))
+                c.execute("INSERT INTO hoplist VALUES (?,?)",(hopCounter,t))
                 hopCounter += 1
 
             return
@@ -62,32 +62,25 @@ class ResultSet:
     def dbCommit (self):
         """ Commit changes to the DB file
 
-        As committing each recieved packet would kill both performance and 
+        As committing each recieved packet would kill both performance and
         some HDDs are changes commited (written) to file in batches
         """
         self.conn.commit()
 
 
-    def dbConnect (self, hostname, username, password, dbName):
+    def dbConnect (self, dbName):
         """Connecting to a database
 
         Attaching to a file which holds the sqlite3 database
 
         Keyword arguments:
-        dbfile -- relative path to the db file
+        dbName -- relative path to the db file
         """
-        
-        # this block could probably have been done a bit neater,
-        # for ex move this to a config file - but it's OKAY for now. 
         try:
-            self.conn = MySQLdb.connect( 
-                host=hostname,
-                user=username,
-                passwd=password,
-                db=dbName)
+            self.conn = sqlite3.connect(dbName + '.sqlite')
 
         except ValueError:
-            raise Exception( "I crashed horribly, probably because the database {0} does not exist.".format(dbName))
+            raise Exception("I crashed horribly")
 
 
         # initializing tables if needed
@@ -103,7 +96,7 @@ class ResultSet:
     #
     def add (self, hop, size, rtt, time):
         """Saves a new observation to the database
-        
+
         Keyword arguments:
         hop -- hop number (int)
         size -- packetsize
@@ -141,11 +134,11 @@ class ResultSet:
     #
     # Output: Median value
     #
-    # Compute the median of an array of doubles.  
+    # Compute the median of an array of doubles.
     # As a side effect, the input array is sorted
-    # 
+    #
     def median (self, values, numValues=0):
-        
+
         values = values.sort()
         return self.percentile(values,0.5)
 

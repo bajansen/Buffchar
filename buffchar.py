@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""   
+"""
     This file is subject to the terms and conditions of the GNU General
     Public License. See the file COPYING in the main directory of this
     archive for more details.
@@ -18,10 +18,6 @@ from ResultSet import *
 verboseFlag = 1
 resultset = None
 prober = None
-dbHost = ""
-dbUser = ""
-dbPass = ""
-
 
 def VersionInfo():
     print "dunno which version"
@@ -41,11 +37,11 @@ def main():
     import getopt
     import sys
     import time
-    
+
     global verboseFlag
     global prober
     global resultset
-    
+
     plotCharts = False
     dbIsConnected = False
     plotting = False
@@ -70,40 +66,40 @@ def main():
             else:
                 prober.targetHost = optarg
         # H: Maximum hops
-        elif c == "-H": 
+        elif c == "-H":
             prober.maxHops = int (optarg)
-            if prober.maxHops > 255: 
+            if prober.maxHops > 255:
                 print "Warning: Maximum hops " + prober.hops + " too large, resetting to 30"
                 prober.maxHops = 30
         # p: create plots and results
         elif c == "-p":
             plotting = True
         # R: Repetitions per hop
-        elif c == "-R": 
+        elif c == "-R":
             prober.maxHopReps = int(optarg)
         # t: ICMP timeout
-        elif c == "-t": 
+        elif c == "-t":
             prober.timeout = int(optarg)
             if prober.timeout < 1:
                 print "Warning: timeout value %d too small, resetting to 1"
                 prober.timeout = 1
         # v: verbose
-        elif c == "-v": 
+        elif c == "-v":
             resultset.verboseLevel = int (optarg)
             prober.verboseLevel = int(optarg)
         # V: version information
-        elif c == "-V": 
+        elif c == "-V":
             VersionInfo()
             sys.exit(0)
         else:
             print c + ": "+optarg
             print "Received unknown flag. Might also be that we have accidentially removed or chosen not to implement what you want. sorry"
             sys.exit(1)
-    
+
     if dbName:
-        resultset.dbConnect (dbHost,dbUser,dbPass,dbName )
+        resultset.dbConnect (dbName)
     else:
-        resultset.dbConnect (dbHost,dbUser,dbPass,"bufferbloat_" + gethostname())
+        resultset.dbConnect ("bufferbloat_" + gethostname())
 
 
     # Starting to probe if a targetHost is given
@@ -116,12 +112,12 @@ def main():
 
     if plotting:
         print "Creating output for", dbName
-        p = Plotter(dbHost,dbUser,dbPass,dbName)
+        p = Plotter(dbName)
         p.bufferbloatScore()
         p.queueData()
         p.rttHistogram (p.numberOfHops, p.totalRtt, filename=dbName)
         commands.getstatusoutput('gnuplot ./buffchar-output/rttHistogram.gnu')
-    
+
     sys.exit(0)
 
 if __name__ == "__main__":

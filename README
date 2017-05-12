@@ -6,7 +6,6 @@ www.os3.nl
 
 
 Usage:
- - configure database settings in buffchar.py
  - run ``python buffchar.py -h example.com -d database_name''
  - add this as a cronjob to be executed every fifth minute or so
  - to plot results: ``python buffchar.py -p -d database_name''

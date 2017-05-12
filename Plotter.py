@@ -1,11 +1,10 @@
-"""   
+"""
     This file is subject to the terms and conditions of the GNU General
     Public License. See the file COPYING in the main directory of this
     archive for more details.
 
 """
 
-import MySQLdb
 import commands
 import os
 
@@ -14,14 +13,10 @@ from time import ctime
 from ResultSet import *
 
 class Plotter:
-    def __init__(self, dbHost,dbUser,dbPass,dbName):
+    def __init__(self, dbName):
         self.dbName = dbName
         self.resultSet = ResultSet()
-        self.conn = MySQLdb.connect( 
-            host=dbHost,
-            user=dbUser,
-            passwd=dbPass,
-            db=dbName)
+        self.conn = sqlite3.connect(dbName + '.sqlite')
 
         self.path = "./buffchar-output/" # path to the folder where stuff should be saved
         if not os.path.exists(self.path):
@@ -36,30 +31,30 @@ class Plotter:
             ts = ctime(toTime)
 
             print ts
-    
+
     def bufferbloatScore (self):
         c = self.conn.cursor()
         good = 0.025
-    
+
         c.execute ("SELECT hop, MIN(rtt) FROM data GROUP BY hop ORDER BY hop DESC LIMIT 1")
         a = c.fetchone()
         lastHop = a[0]
         minRTT = a[1]
 
-        c.execute ("SELECT time, COUNT(*) FROM data where hop=%s GROUP BY time ORDER BY time DESC LIMIT 40",(lastHop,))
-        
+        c.execute ("SELECT time, COUNT(*) FROM data where hop=? GROUP BY time ORDER BY time DESC LIMIT 40",(lastHop,))
+
         times = c.fetchall()
         totalTimes = len(times)
         grade = 0.0
         for time in times:
             k = math.floor((time[1]-1)/2)
-            
-            c.execute ("SELECT rtt FROM data WHERE hop=%s AND time=%s ORDER BY rtt LIMIT %s,1",(lastHop,time[0],k))
+
+            c.execute ("SELECT rtt FROM data WHERE hop=? AND time=? ORDER BY rtt LIMIT ?,1",(lastHop,time[0],k))
 
             median = c.fetchone()[0]-minRTT
             grade += (1/float(totalTimes)) * ((median/good) *1.75)
-        
-        
+
+
         if grade > 10:
             #grade = "10+"
             pass
@@ -67,7 +62,7 @@ class Plotter:
             grade = "{0:.2f}".format(grade)
         print "Bufferbloat score:",grade
 
-    
+
     def queueData(self, numIntervals=False):
         """Generates data and gnuplot files for the line diagram with queue delays"""
         print "queueData..."
@@ -77,7 +72,7 @@ class Plotter:
         # this list will contain:
         # times [timestamps] [hops] [datapoints in the hop]
         times = {}
-        
+
 
         # Fetching the minimum RTTs
         minRTTs = []
@@ -89,13 +84,13 @@ class Plotter:
                 hop +=1
             minRTTs.append (h[1])
             hop +=1
-        
+
         totalRtt = minRTTs[-1]
         self.totalRtt = totalRtt
-        
+
         numberOfHops = len(minRTTs)
-        self.numberOfHops = numberOfHops 
-        
+        self.numberOfHops = numberOfHops
+
         # writing header line to the datafile
         datafile.write("minute timestamp \"Min path\" ")
         for i in range (numberOfHops):
@@ -106,7 +101,7 @@ class Plotter:
         timestamps = []
         c.execute ("SELECT MIN(time), MAX(time) FROM data")
         minimum, maximum = c.fetchone()
-        minimum = int ( float (minimum)) -1 
+        minimum = int ( float (minimum)) -1
         maximum = int (float (maximum)) +1
 
         # fetching every timestamp
@@ -119,9 +114,9 @@ class Plotter:
         for timestamp in timestamps:
 
             # for each timestamp, getting every datapoint
-            c.execute ("SELECT hop, rtt, packetsize FROM data WHERE time BETWEEN %s AND %s", (previousTime,timestamp))
+            c.execute ("SELECT hop, rtt, packetsize FROM data WHERE time BETWEEN ? AND ?", (previousTime,timestamp))
 
-            
+
             if not times.has_key(timestamp):
                 times[timestamp] = {}
 
@@ -141,7 +136,7 @@ class Plotter:
 
         #
         # Looping the list and making sense of it
-        # 
+        #
         keylist = times.keys()
         numberOfTimes = len (keylist)
         keylist.sort()
@@ -151,12 +146,12 @@ class Plotter:
         xticCounter = 0
         for time in keylist:
 
-            # The counter is an integer which represents the number of 
-            # minutes since the start. 
+            # The counter is an integer which represents the number of
+            # minutes since the start.
             #
-            # We find the number of minutes from the start to this 
-            # datapoint by substracting the first timestamp from the 
-            # current timestamp, where we add one second to compensate 
+            # We find the number of minutes from the start to this
+            # datapoint by substracting the first timestamp from the
+            # current timestamp, where we add one second to compensate
             # for the lack of floating  point number accuracy.
             counter = int (math.floor ((float (time)+1 - firstTime) / 60))
 
@@ -190,7 +185,7 @@ class Plotter:
                 previousHop +=1
 
                 times[time][hop].sort()
-                median = self.resultSet.percentile (times[time][hop], 0.5) 
+                median = self.resultSet.percentile (times[time][hop], 0.5)
 
                 # this is actually average
                 median = float (sum (times[time][hop]))/ len (times[time][hop])
@@ -216,7 +211,7 @@ class Plotter:
     def rttHistogram (self, numberOfHops, totalRtt, filename="rttHistogram"):
 
         gnufile = open (self.path+"rttHistogram.gnu", "w")
-        
+
         gnufile.write ('set terminal postscript enhanced color\n')
         gnufile.write ('set output "'+self.path+filename+'.ps"\n')
         gnufile.write ('set title "Queue delay on top of minimum path RTT - {0}"\n'.format (self.dbName.replace("_","-")))
